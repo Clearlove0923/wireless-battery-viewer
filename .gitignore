@@ -1,0 +1,30 @@
+# Python 缓存（字节码里会嵌入本机绝对路径）
+__pycache__/
+*.pyc
+*.pyo
+
+# 运行时产生的文件
+tray_pid.txt
+tray_debug.log
+_dbg*.txt
+_hidcap.log
+
+# 个人设置（刷新间隔 / 开机自启开关）
+tray_config.json
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# Local executable build
+.venv/
+.build-venv/
+.build-temp/
+.uv-cache/
+.uv-cache2/
+.package-venv/
+build/
+dist/
+debug/
