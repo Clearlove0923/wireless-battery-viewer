@@ -1,6 +1,6 @@
 """Device plugins: register a reader without changing panel/tray polling logic."""
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Optional, Callable
 import hid_win as hw
 import battery as bt
@@ -18,6 +18,8 @@ class Reading:
     detail: str = ""
     error: str = ""
     extra: str = ""
+    no_reply: bool = False
+    disabled: bool = False
 
     @property
     def ok(self) -> bool:
@@ -54,6 +56,9 @@ def read_atk() -> Reading:
         r.detail = res.source
     else:
         r.error = res.detail or "读取失败"
+        r.no_reply = r.error.startswith("设备没有回复")
+        if r.no_reply:
+            r.error = "未收到设备回复"
     return r
 
 
@@ -83,7 +88,8 @@ def read_darkrim() -> Reading:
         bits.append(f"状态码 {info.status_code}")
     r.extra = " · ".join(bits)
     if r.level is None and not r.error:
-        r.error = "耳机没有上报电量（请确认耳机已开机并连上）"
+        r.error = "未收到设备回复"
+        r.no_reply = True
     return r
 
 
@@ -92,7 +98,8 @@ def read_mchose_keyboard() -> Reading:
     r = Reading("迈从键盘", "未连接")
     info, error = mcp.read_battery(timeout=1.5)
     if info is None:
-        r.error = error
+        r.no_reply = "没有回复" in error or "未回复" in error
+        r.error = "未收到设备回复" if r.no_reply else error
         return r
     r.subtitle = "3837:201B · MCHOSE G87 V2 2.4G"
     r.level = info.level
@@ -119,7 +126,8 @@ def enabled(key: str, config=None) -> bool:
 
 
 def disabled_reading(plugin: DevicePlugin) -> Reading:
-    return Reading(plugin.title, "插件已关闭", error="已关闭，不读取电量")
+    return Reading(plugin.title, "插件已关闭", error="已关闭，不读取电量",
+                   disabled=True)
 
 
 def read_plugins() -> dict[str, Reading]:
@@ -142,3 +150,29 @@ def mask_disabled(results: dict[str, Reading]) -> dict[str, Reading]:
     config = tc.load_config()
     return {p.key: results[p.key] if enabled(p.key, config) else disabled_reading(p)
             for p in PLUGINS}
+
+
+def apply_last_success(results: dict[str, Reading],
+                       last_success: dict[str, Reading]) -> dict[str, Reading]:
+    """Use the last successful value when an enabled device stops replying.
+
+    ``last_success`` belongs to one running panel/tray process.  It is deliberately
+    not persisted, so the first read after every launch still reports that no reply
+    was received.  Disabling a plugin also forgets its cached value.
+    """
+    merged = {}
+    for plugin in PLUGINS:
+        reading = results[plugin.key]
+        if reading.disabled:
+            last_success.pop(plugin.key, None)
+            merged[plugin.key] = reading
+        elif reading.ok:
+            last_success[plugin.key] = replace(reading)
+            merged[plugin.key] = reading
+        elif reading.no_reply:
+            merged[plugin.key] = replace(last_success[plugin.key]) \
+                if plugin.key in last_success else replace(
+                    reading, error="未收到设备回复")
+        else:
+            merged[plugin.key] = reading
+    return merged

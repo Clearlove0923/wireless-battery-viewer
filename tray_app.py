@@ -218,6 +218,7 @@ class TrayApp:
         self.wndproc_ref = None
         self.busy = False
         self.levels = {k: (None, "正在读取…") for k, _ in DEVICES}
+        self.last_success = {}
         self.icons_added = False
         self.blink_active = False
         self.blink_bright = True
@@ -407,8 +408,9 @@ class TrayApp:
     def on_refresh_done(self) -> None:
         self.busy = False
         if self.pending_levels is not None:
-            self.levels = {key: (r.level, r.error) for key, r in
-                           plugins.mask_disabled(self.pending_levels).items()}
+            readings = plugins.mask_disabled(self.pending_levels)
+            readings = plugins.apply_last_success(readings, self.last_success)
+            self.levels = {key: (r.level, r.error) for key, r in readings.items()}
             self.pending_levels = None
             self.updated_at = time.strftime("%H:%M:%S")
         self.apply_demo_level()

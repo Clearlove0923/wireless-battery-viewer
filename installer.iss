@@ -1,5 +1,5 @@
 #define AppName "设备电量查看器"
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.1"
 
 [Setup]
 AppId={{C25A1A17-6EFA-4B11-B26A-539A87485182}

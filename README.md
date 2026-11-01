@@ -18,7 +18,7 @@ Windows 上读取 2.4G 无线外设电量的小工具。**纯 ctypes 调系统 D
 
 ## 使用方法
 
-普通用户可从仓库的 Releases 下载 `BatteryViewer-Setup-1.0.0.exe`，安装后程序默认常驻
+普通用户可从仓库的 Releases 下载 `BatteryViewer-Setup-1.0.1.exe`，安装后程序默认常驻
 Windows 通知区域；双击闪电图标打开设备面板。
 
 从源码运行：

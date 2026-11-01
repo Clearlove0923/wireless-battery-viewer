@@ -164,6 +164,7 @@ def build_ui(show_plugin_list=False):
 
     state = {"busy": False, "auto": True, "interval": 60, "after_id": None,
              "starting": False, "started_at": 0.0}
+    last_success: dict[str, Reading] = {}
     # Tkinter 不是线程安全的：后台线程只往队列里放结果，主线程统一取出来处理
     results: "queue.Queue[tuple]" = queue.Queue()
 
@@ -425,6 +426,7 @@ def build_ui(show_plugin_list=False):
     # ---- 刷新逻辑 ----
     def apply(readings: list[Reading]):
         masked = plugins.mask_disabled(dict(zip((p.key for p in plugins.PLUGINS), readings)))
+        masked = plugins.apply_last_success(masked, last_success)
         readings = list(masked.values())
         for key, reading in masked.items():
             cards[key].update(reading)

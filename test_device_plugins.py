@@ -70,7 +70,40 @@ class PluginTests(unittest.TestCase):
         with patch.object(p.mcp, 'read_battery', return_value=(None, '键盘未回复')):
             reading = p.read_mchose_keyboard()
         self.assertIsNone(reading.level)
-        self.assertEqual(reading.error, '键盘未回复')
+        self.assertEqual(reading.error, '未收到设备回复')
+        self.assertTrue(reading.no_reply)
+
+    def test_first_no_reply_is_shown_then_last_success_is_retained(self):
+        cache = {}
+        no_reply = {'mouse': p.Reading('Mouse', '', error='未收到设备回复', no_reply=True),
+                    'headset': p.Reading('Headset', '', level=80)}
+        with patch.object(p, 'PLUGINS', self.registry):
+            first = p.apply_last_success(no_reply, cache)
+            self.assertIsNone(first['mouse'].level)
+            self.assertEqual(first['mouse'].error, '未收到设备回复')
+
+            success = dict(no_reply, mouse=p.Reading('Mouse', 'receiver', level=46))
+            p.apply_last_success(success, cache)
+            later = p.apply_last_success(no_reply, cache)
+        self.assertEqual(later['mouse'].level, 46)
+        self.assertEqual(later['mouse'].subtitle, 'receiver')
+
+    def test_other_errors_do_not_reuse_last_success(self):
+        cache = {'mouse': p.Reading('Mouse', '', level=46)}
+        failed = {'mouse': p.Reading('Mouse', '', error='没找到接收器'),
+                  'headset': p.Reading('Headset', '', level=80)}
+        with patch.object(p, 'PLUGINS', self.registry):
+            result = p.apply_last_success(failed, cache)
+        self.assertIsNone(result['mouse'].level)
+        self.assertEqual(result['mouse'].error, '没找到接收器')
+
+    def test_disabling_plugin_clears_last_success(self):
+        cache = {'mouse': p.Reading('Mouse', '', level=46)}
+        disabled = {'mouse': p.disabled_reading(self.registry[0]),
+                    'headset': p.Reading('Headset', '', level=80)}
+        with patch.object(p, 'PLUGINS', self.registry):
+            p.apply_last_success(disabled, cache)
+        self.assertNotIn('mouse', cache)
 
 
 if __name__ == '__main__':
